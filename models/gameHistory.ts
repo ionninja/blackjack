@@ -1,30 +1,9 @@
-import { DataTypes, Model, Sequelize } from 'sequelize';
+import { pgTable, uuid, text } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
-export class GameHistory extends Model {
-  public userId!: string;
-  public game!: string;
-  public result!: string;
-}
-
-export function initializeGameHistoryModel(sequelize: Sequelize) {
-  GameHistory.init(
-    {
-      userId: {
-        type: DataTypes.UUID,
-        allowNull: false,
-      },
-      game: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      result: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-    },
-    {
-      sequelize,
-      modelName: 'GameHistory',
-    }
-  );
-}
+export const GameHistory = pgTable('game_history', {
+  id: uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  userId: uuid('user_id').notNull(),
+  game: text('game').notNull(),
+  result: text('result').notNull(),
+});

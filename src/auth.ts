@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { db } from './db';
 import { User } from './models';
 import { eq } from 'drizzle-orm';
+import { supabase } from './supabaseClient';
 
 interface User {
     userId: string;
@@ -10,16 +11,29 @@ interface User {
 }
 
 export async function registerStaff(username: string, password: string): Promise<User> {
-    const existingUser = await db.select().from(User).where(eq(User.username, username)).execute();
-    if (existingUser.length > 0) {
-        throw new Error('Username already exists');
+    const { data, error } = await supabase.auth.signUp({
+        email: username,
+        password: password,
+    });
+
+    if (error) {
+        throw new Error(error.message);
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await db.insert(User).values({ username, password: hashedPassword }).returning().execute();
-    return { userId: user[0].userId, username: user[0].username, password: user[0].password };
+
+    const user = data.user;
+    if (!user) {
+        throw new Error('User registration failed');
+    }
+
+    return { userId: user.id, username: user.email!, password: password };
 }
 
 export async function authenticateStaff(token: string): Promise<boolean> {
-    const user = await db.select().from(User).where(eq(User.username, token)).execute();
-    return user.length > 0;
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return !!data.user;
 }

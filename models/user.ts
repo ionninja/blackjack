@@ -1,32 +1,8 @@
-import { DataTypes, Model, Sequelize } from 'sequelize';
+import { pgTable, uuid, varchar } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
-export class User extends Model {
-  public userId!: string;
-  public username!: string;
-  public password!: string;
-}
-
-export function initializeUserModel(sequelize: Sequelize) {
-  User.init(
-    {
-      userId: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-      },
-      username: {
-        type: DataTypes.STRING,
-        unique: true,
-        allowNull: false,
-      },
-      password: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-    },
-    {
-      sequelize,
-      modelName: 'User',
-    }
-  );
-}
+export const User = pgTable('users', {
+  userId: uuid('user_id').primaryKey().default(sql`uuid_generate_v4()`),
+  username: varchar('username', { length: 255 }).unique().notNull(),
+  password: varchar('password', { length: 255 }).notNull(),
+});
