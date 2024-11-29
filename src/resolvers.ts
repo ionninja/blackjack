@@ -1,29 +1,31 @@
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { createDeck, shuffleDeck, dealCards, calculateHandValue, splitHand, doubleDown, dealerDraw } from './main.js';
+import { createDeck, shuffleDeck, dealCards, calculateHandValue, splitHand, doubleDown, dealerDraw } from './main';
+import type { User, Table, GameHistory, Hand } from './types';
 
-const users = new Map();
-const tables = new Map();
-const gameHistory = new Map();
+const users = new Map<string, User>();
+const tables = new Map<string, Table>();
+const gameHistory = new Map<string, GameHistory[]>();
 
-const blackjackGames = new Map();
+const blackjackGames = new Map<string, any>();
 
 export const resolvers = {
   Query: {
-    getTables: () => Array.from(tables.values()),
-    getGameHistory: (_, { userId }) => gameHistory.get(userId) || [],
+    getTables: (): Table[] => Array.from(tables.values()),
+    getGameHistory: (_: any, { userId }: { userId: string }): GameHistory[] => gameHistory.get(userId) || [],
   },
   Mutation: {
-    registerUser: async (_, { username, password }) => {
+    registerUser: async (_: any, { username, password }: { username: string; password: string }): Promise<User> => {
       if (users.has(username)) {
         throw new Error('Username already exists');
       }
       const hashedPassword = await bcrypt.hash(password, 10);
       const userId = uuidv4();
-      users.set(username, { userId, username, password: hashedPassword });
-      return { userId, username };
+      const user: User = { userId, username, password: hashedPassword };
+      users.set(username, user);
+      return { userId, username, password: hashedPassword };
     },
-    authenticateUser: async (_, { username, password }) => {
+    authenticateUser: async (_: any, { username, password }: { username: string; password: string }): Promise<User> => {
       const user = users.get(username);
       if (!user) {
         throw new Error('Invalid username or password');
@@ -32,43 +34,16 @@ export const resolvers = {
       if (!isPasswordValid) {
         throw new Error('Invalid username or password');
       }
-      return { userId: user.userId, username: user.username };
+      return user;
     },
-    createTable: (_, { tableId, maxSeats }) => {
-      if (tables.has(tableId)) {
-        throw new Error('Table already exists');
-      }
-      const table = { tableId, maxSeats, seats: [] };
-      tables.set(tableId, table);
-      return table;
-    },
-    joinTable: (_, { tableId, userId }) => {
-      const table = tables.get(tableId);
-      if (!table) {
-        throw new Error('Table not found');
-      }
-      if (table.seats.length >= table.maxSeats) {
-        throw new Error('Table is full');
-      }
-      table.seats.push(userId);
-      return table;
-    },
-    addGameHistory: (_, { userId, game, result }) => {
-      if (!gameHistory.has(userId)) {
-        gameHistory.set(userId, []);
-      }
-      const history = { game, result };
-      gameHistory.get(userId).push(history);
-      return history;
-    },
-    startBlackjackGame: (_, { tableId }) => {
+    startBlackjackGame: (_: any, { tableId }: { tableId: string }): Hand[] => {
       const table = tables.get(tableId);
       if (!table) {
         throw new Error('Table not found');
       }
       const deck = shuffleDeck(createDeck());
       const dealerHand = dealCards(deck, 2);
-      const playerHands = table.seats.map(userId => ({
+      const playerHands = table.seats.map((userId: string) => ({
         userId,
         hand: dealCards(deck, 2),
       }));
@@ -78,12 +53,12 @@ export const resolvers = {
         value: calculateHandValue(hand),
       }));
     },
-    playerAction: (_, { tableId, userId, action }) => {
+    playerAction: (_: any, { tableId, userId, action }: { tableId: string; userId: string; action: string }): Hand => {
       const game = blackjackGames.get(tableId);
       if (!game) {
         throw new Error('Game not found');
       }
-      const player = game.playerHands.find(p => p.userId === userId);
+      const player = game.playerHands.find((p: { userId: string }) => p.userId === userId);
       if (!player) {
         throw new Error('Player not found');
       }
